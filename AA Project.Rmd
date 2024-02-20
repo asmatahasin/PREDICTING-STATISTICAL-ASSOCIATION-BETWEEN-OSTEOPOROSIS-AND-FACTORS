@@ -1,0 +1,574 @@
+---
+title: "Project"
+author: "Asmatahasin"
+date: "2023-05-01"
+output:
+  pdf_document: default
+  word_document: default
+---
+
+
+# Importing the dataset from local
+
+```{r}
+
+setwd("/Users/mohammedasmatahasin/Downloads")
+
+# Import CSV file
+data <- read.csv("UA.csv")
+
+head(data)
+
+```
+
+# Selecting columns of dataframe
+
+```{r}
+# Select columns "A" and "C"
+data <- data[, c("Age", "Gender", "BMI", "Ca", "P", "Mg", "OP", "Smoking", "Drinking")]
+head(data)
+
+```
+
+# Structure of dataframe
+
+```{r}
+
+str(data)
+
+```
+
+
+# Summary of the data
+
+```{r}
+
+summary(data)
+
+```
+
+
+# Check for null values
+
+```{r}
+
+# Check for null values
+sum(is.na(data))
+
+```
+
+
+# Replacing null values with mean values of the column
+
+```{r}
+
+library(dplyr)
+
+# Replace null values with mean value of each column in df: data
+data <- select(data, -ncol(data)) %>%
+  mutate_all(~ifelse(is.na(.), mean(., na.rm = TRUE), .)) %>%
+  bind_cols(select(data, ncol(data)) %>% rename(Drinking = everything()))
+
+sum(is.na(data))
+
+```
+
+
+```{r}
+head(data)
+```
+
+
+# Checking the outliers with Boxplot
+
+```{r}
+
+boxplot(data, outline = TRUE)
+
+```
+
+
+# Print the outliers
+
+```{r}
+
+# Load the required packages
+library(dplyr)
+
+# Calculate the number of outliers in df
+outliers <- apply(data, 2, function(x) {
+  qnt <- quantile(x, probs=c(.25, .75), na.rm = TRUE)
+  H <- 1.5 * IQR(x, na.rm = TRUE)
+  sum(x < (qnt[1] - H) | x > (qnt[2] + H), na.rm = TRUE)
+})
+
+# Print the number of outliers for each column
+print(outliers)
+
+
+```
+
+
+# Function to replace outliers with median values
+
+```{r}
+
+# Define a function to replace outliers with the median value of a vector
+replace_outliers <- function(x) {
+  q1 <- quantile(x, 0.25, na.rm = TRUE)
+  q3 <- quantile(x, 0.75, na.rm = TRUE)
+  iqr <- q3 - q1
+  upper <- q3 + 1.5 * iqr
+  lower <- q1 - 1.5 * iqr
+  replace(x, x > upper | x < lower, median(x, na.rm = TRUE))
+}
+
+```
+
+```{r}
+
+# Replace outlier values with median value of each column in df
+data <- select(data, -last_col()) %>% 
+  mutate_all(replace_outliers) %>% 
+  bind_cols(select(data, last_col()) %>% rename_with(~"Drinking", .cols = everything()))
+
+```
+
+
+# Checking outliers after cleaning
+
+```{r}
+
+boxplot(data, outline = TRUE)
+
+```
+
+# Q-Q Plot
+
+```{r}
+
+qqnorm(data$OP)
+
+```
+
+
+
+# Correlation
+
+```{r}
+
+cor(data)
+
+```
+
+# Spearman Correlation
+
+```{r}
+
+# Calculate the Spearman correlation matrix
+cor(data, method = "spearman")
+
+```
+
+
+# Pearson Correlation
+
+```{r}
+
+# Calculate the Pearson correlation matrix
+cor(data, method = "pearson")
+
+```
+
+
+# Histogram
+
+```{r}
+
+par(mfrow=c(3,3))
+hist(data$Age, col = "#69b3a2", main="Age Histogram")
+hist(data$Gender,col = "#404e7c", main="Gender Histogram")
+hist(data$BMI,col = "#c2d9b1", main="BMI Histogram")
+hist(data$Ca,col = "#e8a87c", main="Ca Histogram")
+hist(data$P,col = "#ff847c", main="P Histogram")
+hist(data$Mg,col = "#fecea8", main="Mg Histogram")
+hist(data$OP,col = "#6c5b7b", main="OP Histogram")
+hist(data$Smoking,col = "#8fbfe0", main="Smoking Histogram")
+hist(data$Drinking,col = "#fcbad3", main="Drinking Histogram")
+
+```
+
+
+# Correlation plot
+
+```{r}
+
+library(corrplot)
+
+corrplot(cor(data), method = "square", order = "hclust", 
+         tl.col = "black", tl.srt = 45, 
+         addCoef.col = "black", number.cex = 0.7)
+
+```
+
+# Pairplot 
+
+```{r}
+
+pairs(data)
+
+```
+
+
+
+#One-sample t-test
+
+```{r}
+
+# Loop through each column and perform t-test
+for (col in colnames(data)) {
+  t.test_result <- t.test(data[,col], mu = 0)
+  if (t.test_result$p.value < 0.05) {
+    print(paste("Null hypothesis for", col, "rejected with p-value =", t.test_result$p.value))
+  } else {
+    print(paste("Null hypothesis for", col, "not rejected with p-value =", t.test_result$p.value))
+  }
+}
+
+```
+
+
+# t-test with OP as target variable
+
+```{r}
+
+# Loop through each column (except OP) and perform t-test with OP as target variable
+for (col in colnames(data)) {
+  t.test_result <- t.test(data[,col], data$OP)
+  if (t.test_result$p.value < 0.05) {
+    print(paste("Null hypothesis for", col, "rejected with p-value =", t.test_result$p.value))
+  } else {
+    print(paste("Null hypothesis for", col, "not rejected with p-value =", t.test_result$p.value))
+  }
+}
+
+```
+
+
+# Wilcoxon rank-sum test
+
+```{r}
+
+# Subset data by gender
+group1 <- subset(data, Gender == 1)
+group2 <- subset(data, Gender == 2)
+
+# Perform Wilcoxon rank-sum test on Score column
+wilcox.test(group1$OP, group2$OP)
+
+```
+
+This result indicates that there is no significant difference between the median of "OP" for group 1 and group 2. The p-value is greater than 0.05, which suggests that we cannot reject the null hypothesis that the true location shift is equal to 0.
+
+
+
+
+# Kruskal-Wallis test
+
+```{r}
+
+# subset the data into two groups based on Gender
+group1 <- subset(data, Gender == 1)
+group2 <- subset(data, Gender == 2)
+
+# create a data frame with the combined groups
+Kruskal_test <- data.frame(value = c(group1$OP, group2$OP),
+                           group = factor(rep(c("Group 1", "Group 2"),
+                                              c(nrow(group1), nrow(group2)))))
+
+# perform the Kruskal-Wallis test
+kruskal.test(value ~ group, data = Kruskal_test)
+
+```
+
+The Kruskal-Wallis test was performed successfully, with a chi-squared value of 0.017706 and a p-value of 0.8941. This suggests that there is no significant difference in the median values of the "value" variable between the two groups.
+
+
+
+# Kruskal-Wallis test by age groups
+
+```{r}
+
+# subset the data into 4 groups based on Age
+age1 <- subset(data, Age >= 28.6 & Age < 51)
+age2 <- subset(data, Age >= 51  & Age < 57)
+age3 <- subset(data, Age >= 57  & Age < 67.3)
+age4 <- subset(data, Age >= 67.3  & Age < 100)
+
+# create a data frame with the combined groups
+Kruskal_test <- data.frame(value = c(age1$OP, age2$OP, age3$OP, age4$OP),
+                           group = factor(rep(c("age1", "age2"," age3", "age4"),
+                                              c(nrow(age1), nrow(age2), nrow(age3), nrow(age4) ))))
+
+# perform the Kruskal-Wallis test
+kruskal.test(value ~ group, data = Kruskal_test)
+
+```
+
+The Kruskal-Wallis test suggests that there might be a significant difference between the groups based on Age. However, the p-value is just above the usual significance level of 0.05. Therefore, further investigation with post-hoc tests such as Dunn's test or pairwise Wilcoxon rank-sum tests should be performed to identify which groups are significantly different from each other.
+
+
+# Mann-Whitney U test
+
+```{r}
+
+# subset the data into 4 groups based on Age
+age1 <- subset(data, Age >= 28.6 & Age < 51)
+age2 <- subset(data, Age >= 51  & Age < 57)
+age3 <- subset(data, Age >= 57  & Age < 67.3)
+age4 <- subset(data, Age >= 67.3  & Age < 100)
+
+# perform pairwise Wilcoxon rank-sum tests
+mann_test <- pairwise.wilcox.test(x = data$OP, g = data$Age_group, p.adjust.method = "bonferroni")
+
+mann_test
+
+```
+
+The output of the pairwise Wilcoxon rank-sum test suggests that there are no significant differences between the "OP" values for the different age groups. The p-values are all greater than 0.05 after Bonferroni correction for multiple comparisons. Therefore, we cannot reject the null hypothesis that there are no differences in "OP" values between the age groups.
+
+Based on the output of the Kruskal-Wallis test and the pairwise comparison results, there is no significant difference between the groups in terms of the variable "x". The p-value for the Kruskal-Wallis test is 0.4, which is greater than the significance level of 0.05, indicating that there is no significant difference between the groups. Furthermore, the pairwise comparison results also show that all the p-values are greater than the adjusted significance level (0.05/15 = 0.0033 using the Bonferroni correction), suggesting that there are no significant differences between any pairs of groups. Therefore, we can conclude that there is no significant difference between the groups in terms of the variable "x".
+
+
+
+# Multiple regression model on BMI, Smoking, Drinking
+
+```{r}
+
+# Fit the multiple regression model
+reg_model <- lm(OP ~ BMI + Smoking + Drinking, data = data)
+
+summary(reg_model)
+
+```
+
+
+# Multiple Regression on OP vs Ca, Mg, P
+
+```{r}
+
+# Fit the multiple regression model
+reg_model <- lm(OP ~ Ca + Mg + P, data = data)
+
+summary(reg_model)
+
+```
+
+
+# Multiple regression model on Age, Gender
+
+```{r}
+
+# Fit the multiple regression model
+reg_model <- lm(OP ~ Age + Gender, data = data)
+
+summary(reg_model)
+
+```
+
+
+# Logistic regression model on BMI, Gender
+
+```{r}
+
+# Fit a logistic regression model
+model <- glm(OP ~ BMI + Gender, data = data, family = binomial)
+
+# Print the model summary
+summary(model)
+
+```
+
+
+# Logistic Regression on OP vs BMI, Smoking, Drinking
+
+```{r}
+
+# Fit a logistic regression model
+model <- glm(OP ~ BMI + Smoking  + Drinking, data = data, family = binomial)
+
+# Print the summary of the model
+summary(model)
+
+```
+
+
+# Logistic Regression on OP vs Ca, Mg, P
+
+```{r}
+
+# Fit a logistic regression model
+model2 <- glm(OP ~ Ca  + Mg + P, data = data, family = binomial)
+
+# Print the summary of the model
+summary(model2)
+
+```
+
+
+# Logistic Regression on OP vs BMI, Gender
+
+```{r}
+
+# Fit a logistic regression model
+model <- glm(OP ~ BMI + Gender, data = data, family = binomial)
+
+# Print the summary of the model
+summary(model)
+
+```
+
+
+# Random Forest Regression
+
+```{r}
+
+# Load required library
+library(randomForest)
+library(caret)
+
+data$OP <- as.factor(data$OP)
+
+# Split data into training and testing sets
+set.seed(123)
+train_idx <- sample(1:nrow(data), size = 0.7*nrow(data))
+train_data <- data[train_idx,]
+test_data <- data[-train_idx,]
+
+
+rf_model <- randomForest(OP ~ ., data = train_data, importance = TRUE, ntree = 500, mtry = 3)
+
+# Predict using the fitted model and test data
+rf_pred <- predict(rf_model, newdata = test_data)
+
+# Create contingency table
+tab <- table(rf_pred, test_data$OP)
+
+# Convert to confusion matrix
+cm <- confusionMatrix(tab)
+
+# Print confusion matrix
+print(cm)
+
+
+```
+
+Based on this confusion matrix, we can evaluate the performance of the random forest model. We can see that the model predicted 295 observations as category 0, out of which 272 were correctly classified (true negatives) and 23 were incorrectly classified (false positives). The model predicted 167 observations as category 1, out of which only 18 were correctly classified (true positives) and 149 were incorrectly classified (false negatives), which gives an overall accuracy of approximately 62.77%. 
+
+
+
+
+# Tuning the hyperparameters using grid search
+
+```{r}
+
+# Load required library
+library(randomForest)
+
+# Split data into training and testing sets
+set.seed(123)
+train_idx <- sample(1:nrow(data), size = 0.7*nrow(data))
+train_data <- data[train_idx,]
+test_data <- data[-train_idx,]
+
+# Define grid for tuning
+rf_grid <- expand.grid(ntree = c(500, 1000),
+                       mtry = c(2, 4))
+
+# Define the grid of ntree and mtry values
+ntree_vals <- c(500, 1000)
+mtry_vals <- c(2, 4)
+
+# Tune random forest model
+rf_tune <- tuneRF(x = train_data[, -1], y = train_data$OP, 
+                  ntreeTry = ntree_vals[1], 
+                  mtryStart = mtry_vals[1], 
+                  stepFactor = 1.2, 
+                  improve = 0.01)
+
+# Train random forest model with optimal hyperparameters
+rf_model <- randomForest(OP ~ ., data = train_data[-1], ntree = 1000, mtry = rf_tune[1, "mtry"])
+
+# Predict on test data
+rf_pred <- predict(rf_model, test_data)
+
+# Evaluate model performance
+confusionMatrix(table(rf_pred, test_data$OP))
+
+```
+
+```{r}
+
+train_data[-1]
+
+```
+
+
+```{r}
+
+# Load required libraries
+library(caret)
+library(randomForest)
+
+# Split data into training and testing sets
+set.seed(123)
+train_idx <- sample(1:nrow(data), size = 0.7*nrow(data))
+train_data <- data[train_idx,]
+test_data <- data[-train_idx,]
+
+# Set up a grid of hyperparameters to tune
+rf_grid <- expand.grid(mtry = c(2, 3, 4, 5))
+
+# Tune random forest model
+rf_tune <- train(OP ~ ., data = train_data, method = "rf",
+                 trControl = trainControl(method = "cv", number = 10),
+                 tuneGrid = rf_grid, importance = TRUE)
+
+# Train random forest model with optimal hyperparameters
+rf_model <- randomForest(train_data$OP ~ ., data = train_data, mtry = rf_tune$bestTune$mtry)
+
+# Predict on test data
+rf_pred <- predict(rf_model, test_data)
+
+# Evaluate model performance
+table(rf_pred, test_data$OP)
+
+# Variable importance measures
+varImpPlot(rf_model)
+
+# Evaluate model performance
+confusionMatrix(rf_pred, test_data$OP)
+
+```
+The confusion matrix shows the performance of the random forest model. The model correctly predicted 269 out of 395 samples with true negative cases (TN) and 17 out of 43 samples with true positive cases (TP). However, it misclassified 150 samples with false positive cases (FP) and 26 samples with false negative cases (FN).
+
+The accuracy of the model is 0.619, which means that the model correctly classified 61.9% of the samples. The kappa value of 0.0163 indicates that the model's agreement with the actual class is very low.
+
+The sensitivity of the model is 0.9119, which means that the model correctly identified 91.19% of the true positive cases. The specificity of the model is 0.1018, which means that the model correctly identified only 10.18% of the true negative cases. The balanced accuracy, which is the average of sensitivity and specificity, is 0.5068.
+
+The positive predictive value (PPV) of the model is 0.6420, which means that among the samples predicted as positive, only 64.2% were actually positive. The negative predictive value (NPV) is 0.3953, which means that among the samples predicted as negative, only 39.53% were actually negative.
+
+The prevalence of the positive class in the dataset is 0.6385, which means that 63.85% of the samples are actually positive. The detection rate, which is the proportion of true positive cases detected by the model, is 0.5823. The detection prevalence, which is the proportion of samples predicted as positive by the model, is 0.9069.
+
+Overall, the random forest model's performance is suboptimal and needs further improvement.
+
+
+
+
+```{r}
+
+rf_pred
+
+```
+
+
