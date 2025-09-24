@@ -77,7 +77,7 @@ install.packages(c("dplyr", "corrplot", "randomForest", "caret"))
 ##How to Run:
 1. Clone the Repository:  
 ```r
-git clone https://github.com/yourusername/stats-projects.git
+git clone https://github.com/asmatahasin/stats-projects.git
 ```
 2. Place the Dataset:
 Download and Ensure that `UA.csv` is located in the designated folder or update the path accordingly in the R script).
